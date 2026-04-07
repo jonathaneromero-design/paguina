@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>MetalStream P2P - Sincronizado</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --negro: #0a0a0a;
+            --rojo: #e50914;
+            --metal: #2c2c2c;
+        }
+        body { background: var(--negro); color: white; font-family: sans-serif; text-align: center; margin: 0; }
+        .header { background: linear-gradient(180deg, var(--metal), #000); padding: 10px; border-bottom: 2px solid var(--rojo); }
+        
+        .setup-box { background: #1a1a1a; padding: 20px; border-radius: 8px; margin: 20px auto; width: 80%; border: 1px solid var(--metal); }
+        
+        /* Contenedor Versátil: Acepta Video o Páginas */
+        #mediaContainer { width: 90%; height: 60vh; margin: 20px auto; background: #000; border: 3px solid var(--metal); position: relative; border-radius: 10px; overflow: hidden; }
+        iframe, video { width: 100%; height: 100%; border: none; }
+
+        input { padding: 10px; background: #000; border: 1px solid var(--rojo); color: white; border-radius: 4px; width: 250px; }
+        button { padding: 10px 20px; background: var(--rojo); color: white; border: none; cursor: pointer; font-weight: bold; text-transform: uppercase; border-radius: 4px; transition: 0.3s; }
+        button:hover { background: #ff1a25; box-shadow: 0 0 10px var(--rojo); }
+        .id-display { color: var(--rojo); font-weight: bold; font-family: monospace; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>METALSTREAM SYNC 🎬</h1>
+    </div>
+
+    <div class="setup-box">
+        <p>Tu ID de conexión: <span id="my-id" class="id-display">Generando...</span></p>
+        <input type="text" id="peer-id-input" placeholder="Pega el ID de tu amigo">
+        <button onclick="connectToFriend()">Conectar con Amigo</button>
+    </div>
+
+    <div class="setup-box" style="border-top: 2px solid var(--rojo);">
+        <input type="text" id="url-input" placeholder="Link de Video o Web (YouTube, etc)">
+        <button onclick="changeMedia()">Cargar para Ambos</button>
+    </div>
+
+    <div id="mediaContainer">
+        <div style="margin-top: 20%; color: #444;">Esperando contenido...</div>
+    </div>
+
+    <script>
+        let peer = new Peer(); // Crea un ID único para ti
+        let conn;
+        const myIdDisplay = document.getElementById('my-id');
+        const container = document.getElementById('mediaContainer');
+
+        // 1. Mostrar tu ID para que se lo pases a tu amigo
+        peer.on('open', (id) => {
+            myIdDisplay.innerText = id;
+        });
+
+        // 2. Escuchar cuando alguien se conecta a ti
+        peer.on('connection', (connection) => {
+            conn = connection;
+            setupSync();
+        });
+
+        // 3. Función para conectarte a tu amigo
+        function connectToFriend() {
+            const friendId = document.getElementById('peer-id-input').value;
+            conn = peer.connect(friendId);
+            setupSync();
+        }
+
+        function setupSync() {
+            conn.on('data', (data) => {
+                if (data.type === 'URL_CHANGE') {
+                    renderMedia(data.url, false);
+                }
+            });
+            alert("¡Conectados con éxito!");
+        }
+
+        // 4. Cambiar el contenido (Video o Iframe)
+        function changeMedia() {
+            const url = document.getElementById('url-input').value;
+            renderMedia(url, true);
+        }
+
+        function renderMedia(url, sendSignal) {
+            // Detectar si es YouTube para convertirlo en link de reproductor
+            let finalUrl = url;
+            if (url.includes('youtube.com/watch?v=')) {
+                finalUrl = url.replace('watch?v=', 'embed/');
+            }
+
+            // Decidir si usamos <iframe> (para webs) o <video> (para archivos)
+            if (url.endsWith('.mp4') || url.endsWith('.mkv')) {
+                container.innerHTML = `<video src="${url}" controls autoplay id="v-player"></video>`;
+            } else {
+                container.innerHTML = `<iframe src="${finalUrl}" allowfullscreen></iframe>`;
+            }
+
+            // Enviar la señal al amigo
+            if (sendSignal && conn) {
+                conn.send({ type: 'URL_CHANGE', url: url });
+            }
+        }
+    </script>
+</body>
+</html>
